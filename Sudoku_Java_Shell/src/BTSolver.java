@@ -1,6 +1,10 @@
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.HashMap;
 
 public class BTSolver
 {
@@ -62,7 +66,38 @@ public class BTSolver
 	 */
 	private boolean forwardChecking ( )
 	{
-		return false;
+		List<Constraint> mConstraints = network.getModifiedConstraints();
+
+		for (Constraint mConstraint : mConstraints) {
+			if (!mConstraint.isConsistent()) {
+				return false;
+			}
+		}
+		
+		for (Variable var : mConstraints.get(0).vars) {
+			if (var.isAssigned() && var.isModified()) {
+				Variable curVar = var;
+				Integer curVal = curVar.getAssignment();
+				for (Variable nei : network.getNeighborsOfVariable(curVar)) {
+					if (!nei.isAssigned() && nei.getDomain().contains(curVal)) {
+						trail.push(nei);
+						nei.removeValueFromDomain(curVal);
+						
+						if (nei.isAssigned()) {
+							mConstraints = network.getModifiedConstraints();
+							for (Constraint mConstraint : mConstraints) {
+								if (!mConstraint.isConsistent()) {
+									return false;
+								}
+							}
+						}
+					}
+				}
+				break;
+			}
+		}
+
+		return true;
 	}
 
 	/**
@@ -118,7 +153,15 @@ public class BTSolver
 	 */
 	private Variable getMRV ( )
 	{
-		return null;
+		Variable mrvVar = null;
+		int minLen = Integer.MAX_VALUE;
+		for (Variable v : network.getVariables()) {
+			if (!v.isAssigned() && v.size() < minLen) {
+				mrvVar = v;
+				minLen = v.size();
+			}
+		}
+		return mrvVar;
 	}
 
 	/**
@@ -185,7 +228,34 @@ public class BTSolver
 	 */
 	public List<Integer> getValuesLCVOrder ( Variable v )
 	{
-		return null;
+		List<Integer> domainVals = v.getDomain().getValues();
+		Map<Integer, Integer> map = new HashMap<>();
+		
+		for (Integer val : domainVals) {
+			map.put(val, 0);
+		}
+		
+		for (Variable nei : network.getNeighborsOfVariable(v)) {
+			for (Integer val : nei.getDomain().getValues()) {
+				if (map.containsKey(val)) {
+					map.put(val, map.get(val) + 1);
+				}
+			}
+		}
+		
+		List<Map.Entry<Integer, Integer>> list = new ArrayList<>(map.entrySet());
+		Collections.sort(list, new Comparator<Map.Entry<Integer, Integer>>() {
+			public int compare(Map.Entry<Integer, Integer> e1, Map.Entry<Integer, Integer> e2) {
+				return e1.getValue().compareTo(e2.getValue());
+			}
+		});
+
+		List<Integer> ans = new ArrayList<>();
+		for (Map.Entry<Integer, Integer> entry : list) {
+			ans.add(entry.getKey());
+		}
+
+		return ans;
 	}
 
 	/**
