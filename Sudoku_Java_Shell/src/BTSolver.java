@@ -65,7 +65,28 @@ public class BTSolver
 	 * Return: true is assignment is consistent, false otherwise
 	 */
 	private boolean forwardChecking ( )
-	{
+    {
+        List<Constraint> mConstraints = network.getModifiedConstraints();
+        
+        for (Constraint mConstraint: mConstraints) {
+            for (Variable var : mConstraint.vars) {
+                if ( var.isAssigned()) {
+                    for (Variable nei : mConstraint.vars) {
+                        if (nei.equals(var)) {
+                            continue;
+                        }
+                        trail.push(nei);
+                        nei.removeValueFromDomain(var.getAssignment());
+                        if (nei.size() == 0) {
+                            return false;
+                        }
+                    }
+                }				
+            }
+        }
+        return true;
+        
+        /*
 		List<Constraint> mConstraints = network.getModifiedConstraints();
 
 		for (Constraint mConstraint : mConstraints) {
@@ -98,6 +119,7 @@ public class BTSolver
 		}
 
 		return true;
+         */
 	}
 
 	/**
