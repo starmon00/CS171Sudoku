@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.HashMap;
+import java.util.HashSet;
 
 public class BTSolver
 {
@@ -61,65 +62,40 @@ public class BTSolver
 	 * (1) If a variable is assigned then eliminate that value from
 	 *     the square's neighbors.
 	 *
-	 * Note: remember to trail.push variables before you assign them
+	 * Note: remember to trail.push variables before you change their domain
 	 * Return: true is assignment is consistent, false otherwise
 	 */
 	private boolean forwardChecking ( )
-    {
-        List<Constraint> mConstraints = network.getModifiedConstraints();
-        
-        for (Constraint mConstraint: mConstraints) {
-            for (Variable var : mConstraint.vars) {
-                if ( var.isAssigned()) {
-                    for (Variable nei : mConstraint.vars) {
-                        if (nei.equals(var)) {
-                            continue;
-                        }
-                        trail.push(nei);
-                        nei.removeValueFromDomain(var.getAssignment());
-                        if (nei.size() == 0) {
-                            return false;
-                        }
-                    }
-                }				
-            }
-        }
-        return true;
-        
-        /*
-		List<Constraint> mConstraints = network.getModifiedConstraints();
-
-		for (Constraint mConstraint : mConstraints) {
+	{
+		Set<Variable> set = new HashSet<>();
+		for (Variable var : network.getVariables()) {
+			if (var.isModified()) {
+				set.add(var);
+			}
+		}
+		for (Constraint mConstraint: network.getModifiedConstraints()) {
+			for (Variable curVar : mConstraint.vars) {
+				if (curVar.isAssigned() && set.contains(curVar)) {
+					Integer curVal = curVar.getAssignment();
+					for (Variable nei : mConstraint.vars) {
+						if (nei.equals(curVar)) {
+							continue;
+						}
+						if (nei.getValues().contains(curVal)) {
+							if (nei.size() == 1) {
+								return false;
+							}
+							trail.push(nei);
+							nei.removeValueFromDomain(curVal);
+						}
+					}
+				}
+			}
 			if (!mConstraint.isConsistent()) {
 				return false;
 			}
 		}
-		
-		for (Variable var : mConstraints.get(0).vars) {
-			if (var.isAssigned() && var.isModified()) {
-				Variable curVar = var;
-				Integer curVal = curVar.getAssignment();
-				for (Variable nei : network.getNeighborsOfVariable(curVar)) {
-					if (!nei.isAssigned() && nei.getDomain().contains(curVal)) {
-						trail.push(nei);
-						nei.removeValueFromDomain(curVal);
-						
-						if (nei.isAssigned()) {
-							mConstraints = network.getModifiedConstraints();
-							for (Constraint mConstraint : mConstraints) {
-								if (!mConstraint.isConsistent()) {
-									return false;
-								}
-							}
-						}
-					}
-				}
-				break;
-			}
-		}
-
 		return true;
-         */
 	}
 
 	/**
@@ -134,7 +110,7 @@ public class BTSolver
 	 * (2) If a constraint has only one possible place for a value
 	 *     then put the value there.
 	 *
-	 * Note: remember to trail.push variables before you assign them
+	 * Note: remember to trail.push variables before you change their domain
 	 * Return: true is assignment is consistent, false otherwise
 	 */
 	private boolean norvigCheck ( )
