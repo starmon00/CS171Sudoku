@@ -67,34 +67,27 @@ public class BTSolver
 	 */
 	private boolean forwardChecking ( )
 	{
-		Set<Variable> set = new HashSet<>();
 		for (Variable var : network.getVariables()) {
-			if (var.isModified()) {
-				set.add(var);
-			}
-		}
-		for (Constraint mConstraint: network.getModifiedConstraints()) {
-			for (Variable curVar : mConstraint.vars) {
-				if (curVar.isAssigned() && set.contains(curVar)) {
-					Integer curVal = curVar.getAssignment();
-					for (Variable nei : mConstraint.vars) {
-						if (nei.equals(curVar)) {
-							continue;
-						}
-						if (nei.getValues().contains(curVal)) {
-							if (nei.size() == 1) {
-								return false;
-							}
-							trail.push(nei);
-							nei.removeValueFromDomain(curVal);
-						}
+			if (var.isAssigned()) {
+				for (Variable nei : network.getNeighborsOfVariable(var)) {
+					if (var.getAssignment().equals(nei.getAssignment())) {
+						return false;
+					}
+					int assignedVal = var.getAssignment();
+					if (nei.getDomain().getValues().contains(assignedVal)) {
+						trail.push(nei);
+						nei.removeValueFromDomain(assignedVal);
 					}
 				}
 			}
-			if (!mConstraint.isConsistent()) {
+		}
+
+		for (Constraint c : network.getModifiedConstraints()) {
+			if (!c.isConsistent()) {
 				return false;
 			}
 		}
+
 		return true;
 	}
 
@@ -115,7 +108,37 @@ public class BTSolver
 	 */
 	private boolean norvigCheck ( )
 	{
-		return false;
+		if (!forwardChecking()) {
+			return false;
+		}
+		
+		int N = sudokuGrid.getN();
+
+		for (Constraint constraint : network.getConstraints()) {
+			int[] placesCounter = new int[N + 1];
+			for (Variable var : constraint.vars) {
+				for (Integer valInDomain : var.getDomain().getValues()) {
+					placesCounter[valInDomain]++;
+				}
+			}
+
+			for (int i = 1; i <= N; i++) {
+				if (placesCounter[i] == 1) {
+					for (Variable var : constraint.vars) {
+						if (var.getDomain().contains(i)) {
+							trail.push(var);
+							var.assignValue(i);
+							break;
+						}
+					}
+				}
+			}
+			if (!constraint.isConsistent()){
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	/**
@@ -169,7 +192,25 @@ public class BTSolver
 	 */
 	private Variable getDegree ( )
 	{
-		return null;
+		Variable maxDegVar = null;
+		int maxDegree = Integer.MIN_VALUE;
+		
+		for (Variable v : network.getVariables()) {
+			if (!v.isAssigned()) {
+				int degree = 0;
+				for (Variable nei : network.getNeighborsOfVariable(v)) {
+					if (!nei.isAssigned()) {
+						degree++;
+					}
+				}
+				if (degree > maxDegree) {
+					maxDegree = degree;
+					maxDegVar = v;
+				}
+			}
+		}
+		
+		return  maxDegVar;
 	}
 
 	/**
@@ -181,7 +222,35 @@ public class BTSolver
 	 */
 	private Variable MRVwithTieBreaker ( )
 	{
-		return null;
+		Variable resVar = null;
+		int resLen = Integer.MAX_VALUE;
+		
+		for (Variable v : network.getVariables()) {
+			if (!v.isAssigned()) {
+				if (v.size() < resLen) {
+					resVar = v;
+					resLen = v.size();
+				} 
+				else if (v.size() == resLen) {
+					int resDegree = 0, curDegree = 0;
+					for (Variable nei : network.getNeighborsOfVariable(resVar)) {
+						if (!nei.isAssigned()) {
+							resDegree++;
+						}
+					}
+					for (Variable nei : network.getNeighborsOfVariable(v)) {
+						if (!nei.isAssigned()) {
+							curDegree++;
+						}
+					}
+					if (curDegree > resDegree) {
+						resVar = v;
+					}
+				}
+			}
+		}
+
+		return resVar;
 	}
 
 	/**
