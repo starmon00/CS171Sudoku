@@ -126,7 +126,6 @@ public class BTSolver
 				if (placesCounter[i] == 1) {
 					for (Variable var : constraint.vars) {
 						if (var.getDomain().contains(i)) {
-							trail.push(var);
 							var.assignValue(i);
 							break;
 						}
